@@ -1,6 +1,6 @@
 # Project 2: Booking Agent + Eval Harness
 
-**Live demo:** https://claude.ai/artifact/NSLmMwWe4MKpG6BFrVcadS  |  **PRD:** PRD B in the [PRDs doc](https://claude.ai/code/artifact/78d47c7d-d174-4c3c-8870-934f3894446c)
+**Live demo:** https://superb-llama-82327b.netlify.app |  **PRD:** PRD B in the [PRDs doc](https://claude.ai/code/artifact/78d47c7d-d174-4c3c-8870-934f3894446c)
 
 ## Problem
 A home-services business uses an AI agent to book appointments. It must handle emergencies, never invent prices or policies, and resist prompt injection, and every prompt change risks breaking something.
