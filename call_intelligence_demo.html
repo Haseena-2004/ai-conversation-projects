@@ -1,0 +1,67 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Call Intelligence + Next Best Action</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>
+:root{--bg:#fff;--fg:#1a1a1a;--mut:#666;--card:#f3f3f1;--ac:#0b6bcb;--ok:#1a7f37;--bad:#c62828;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#161616;--fg:#eee;--mut:#aaa;--card:#242424;--ac:#6cb0ff;--ok:#5ad17a;--bad:#ff7b72}}
+:root[data-theme="dark"]{--bg:#161616;--fg:#eee;--mut:#aaa;--card:#242424;--ac:#6cb0ff;--ok:#5ad17a;--bad:#ff7b72}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}
+main{max-width:860px;margin:auto;padding:20px 16px 48px}h1{font-size:22px;margin:0 0 4px}h2{font-size:16px;margin:28px 0 8px}
+.mut{color:var(--mut)}.card{background:var(--card);border-radius:10px;padding:14px;margin-bottom:10px}
+button,select,textarea{font:inherit;padding:6px 10px;border-radius:8px;border:1px solid var(--mut);background:var(--bg);color:var(--fg)}
+button.p{background:var(--ac);color:#fff;border-color:var(--ac);cursor:pointer;padding:8px 14px}button:disabled{opacity:.5}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}pre{white-space:pre-wrap;margin:6px 0;font:13px/1.45 inherit}
+.out{border-top:1px solid var(--mut);margin-top:8px;padding-top:8px;font-size:14px}.ok{color:var(--ok);font-weight:600}.bad{color:var(--bad);font-weight:600}
+textarea{width:100%;min-height:80px}.tw{overflow-x:auto}
+</style></head><body><main>
+<h1>Call Intelligence + Next Best Action</h1>
+<p class="mut">Turns customer call transcripts (English and Hinglish, EdTech renewals and EMI reminders) into structured insight: intent, sentiment, objection, and the recommended next channel, timing and message. Includes a human-vs-model agreement check. Built for a Product Management internship at Convin.</p>
+<div id="note" class="mut"></div>
+
+<h2>1. Label the calls yourself first</h2>
+<p class="mut">Read each transcript and pick your own labels <b>before</b> running the model. Then press Analyze all.</p>
+<div id="list"></div>
+<div class="row"><button class="p" id="go">Analyze all with AI</button><span id="prog" class="mut"></span></div>
+
+<h2>2. Agreement (human vs model)</h2><div class="card" id="score">Run the analysis to see results.</div>
+<h2>3. Product insights</h2><div class="card" id="ins">Appear after analysis.</div>
+
+<h2>Try your own transcript</h2>
+<div class="card"><textarea id="own" placeholder="Paste a call transcript..."></textarea><div class="row" style="margin-top:8px"><button class="p" id="goOwn">Analyze</button></div><div id="ownOut"></div></div>
+
+<h2>How it works</h2>
+<div class="card">The model returns JSON with a fixed label set, so outputs can be measured. Guardrails: the model must not offer discounts or terms not mentioned in the call, and a rule-based checker flags any NBA message containing a number or offer word that is not in the transcript. It also flags escalations (threats, abuse), a confidence score, and low-confidence calls for human review; wrong-number and hostile customers get no follow-up. <b>Limits:</b> only 3 calls here (price objection, EMI promise in Hinglish, angry customer), so treat the percentages as a demo, not proof (the full pipeline script runs 30+ calls); intent labels overlap (e.g. a price objection can be "interested" or "not interested"), which is itself a finding for label design. Next: feed real conversion outcomes back to rank actions.</div>
+
+<script>
+const T0=[
+`Agent: Hi, this is Aarav from the NEET prep team about renewing your course.\nCustomer: Honestly the fee went up to 45,000, I can't afford that this year.\nAgent: We have a loyalty plan.\nCustomer: If there is EMI I might think about it.`,
+`Agent: Hello, kya main Rohit se baat kar raha hoon?\nCustomer: Nahi bhai, Rohit yahan nahi rehta, aapne galat number lagaya hai.\nAgent: Maaf kijiye, sorry for the disturbance.`,
+`Agent: Sir, aapki EMI 12 tarikh ko due thi, abhi pending hai.\nCustomer: Haan haan pata hai, Friday tak payment kar dunga, salary aane wali hai.\nAgent: Theek hai, hum Friday ko reminder bhej denge.`,
+`Customer: Stop calling me every day! I will report this to the regulator.\nAgent: Sir, I only wanted to remind you about your renewal.\nCustomer: Take my number off your list!`,
+`Agent: Aapka JEE course renewal hone wala hai.\nCustomer: Papa se poochna padega, woh shaam ko office se aayenge.\nAgent: Kya main shaam 7 baje call karun?\nCustomer: Haan theek hai.`,
+`Agent: Madam, your loan EMI shows as unpaid this month.\nCustomer: I paid last week through UPI, please check again.\nAgent: Could you share the transaction ID?\nCustomer: I'll send it on WhatsApp.`];
+const T=[T0[0],T0[2],T0[3]];
+const INT=["interested","not_interested","callback","wrong_number","already_paid","will_pay_later"],OBJ=["price","timing","trust","competitor","parent_approval","none"],CH=["call","whatsapp","sms","none"];
+const STG=["new_lead","considering","negotiating","committed","at_risk","lost"];
+const SYS=`You analyse a customer call transcript for a B2C company in India. Return JSON only: {"intent":one of ${JSON.stringify(INT)},"customer_stage":one of ${JSON.stringify(STG)},"sentiment":"positive|neutral|negative","objection":one of ${JSON.stringify(OBJ)},"escalate":true|false,"escalation_reason":"short, or empty","confidence":number 0 to 1 for your overall analysis,"needs_human_review":true|false,"next_action":{"channel":one of ${JSON.stringify(CH)},"timing":"e.g. within 1 hour / tomorrow 6pm / none","message":"short draft in the customer's language, or empty"}}. escalate=true for threats to complain or sue, abusive customers, or repeated unresolved complaints. needs_human_review=true if confidence is below 0.7 or the call is ambiguous. Never offer discounts or terms not mentioned in the call. For wrong_number or hostile customers use channel "none".`;
+function risk(j,t){const m=(j.next_action?.message||"").toLowerCase(),tl=t.toLowerCase(),f=[];(m.match(/\d[\d,.%]*/g)||[]).forEach(n=>{if(!tl.includes(n.replace(/[.,]$/,"")))f.push("number "+n+" not in call")});["discount","offer","waive","free","cashback"].forEach(w=>{if(m.includes(w)&&!tl.includes(w))f.push("'"+w+"' not in call")});return f}
+const $=id=>document.getElementById(id),esc=s=>String(s??"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+let sample=null,res=[];
+claude.use("sample").then(s=>{sample=s;if(!s)$("note").textContent="Live AI is unavailable in this view (open the link while signed in to claude.ai)."});
+const sel=(id,o)=>`<select id="${id}"><option value="">-</option>${o.map(x=>`<option>${x}</option>`).join("")}</select>`;
+$("list").innerHTML=T.map((t,i)=>`<div class="card"><b>Call ${i+1}</b><pre>${esc(t)}</pre><div class="row">Intent ${sel("hi"+i,INT)} Objection ${sel("ho"+i,OBJ)} Channel ${sel("hc"+i,CH)} Escalate? ${sel("he"+i,["yes","no"])}</div><div class="out" id="o${i}" hidden></div></div>`).join("");
+const show=(j,t)=>{if(!j)return "error";const rk=risk(j,t),a=j.next_action||{};return `<b>Model:</b> intent <b>${esc(j.intent)}</b> · stage ${esc(j.customer_stage)} · sentiment ${esc(j.sentiment)} · objection <b>${esc(j.objection)}</b> · confidence <b>${esc(j.confidence)}</b><br>${j.escalate?'<span class="bad">ESCALATE: '+esc(j.escalation_reason)+'</span><br>':''}${(j.needs_human_review||j.confidence<0.7)?'<span class="bad">Needs human review</span><br>':''}<b>Next action:</b> ${esc(a.channel)} · ${esc(a.timing)}<br><i>${esc(a.message)}</i>${rk.length?'<br><span class="bad">Message risk: '+esc(rk.join("; "))+'</span>':'<br><span class="ok">Message check passed</span>'}`};
+async function an(t){return await sample.json(`${SYS}\n\nTranscript:\n${t}`,{cache:false})}
+$("go").onclick=async()=>{if(!sample)return;$("go").disabled=true;res=[];
+for(let i=0;i<T.length;i++){$("prog").textContent=`Analyzing ${i+1}/${T.length}`;let j=null;try{j=await an(T[i])}catch(e){}res.push(j);$("o"+i).hidden=false;$("o"+i).innerHTML=show(j,T[i])}
+$("prog").textContent="Done.";$("go").disabled=false;score()};
+function score(){const f=[["escalation","he",x=>x.escalate?"yes":"no"],["intent","hi",x=>x.intent],["objection","ho",x=>x.objection],["channel","hc",x=>x.next_action?.channel]];let h="",n=0;
+for(const[nm,p,g]of f){let hit=0,tot=0;res.forEach((j,i)=>{const v=$(p+i).value;if(j&&v){tot++;if(g(j)==v)hit++}});n=Math.max(n,tot);
+h+=`<div>${nm}: <b>${tot?hit+"/"+tot+" = "+Math.round(100*hit/tot)+"%":"label the calls to score"}</b></div>`}
+const cw=[],cr=[];res.forEach((j,i)=>{const v=$("hi"+i).value;if(j&&v)(j.intent==v?cr:cw).push(+j.confidence||0)});const av=a=>a.length?(a.reduce((x,y)=>x+y,0)/a.length).toFixed(2):"n/a";h+=`<div>Avg confidence when intent right: <b>${av(cr)}</b> · when wrong: <b>${av(cw)}</b> (a useful confidence score is lower when the model is wrong)</div>`;
+h+=`<div class="mut" style="margin-top:6px">Disagreements are the interesting rows: read them and decide whether the model or your label was wrong.</div>`;$("score").innerHTML=h;
+const c=(g)=>{const m={};res.forEach(j=>{if(j){const k=g(j);m[k]=(m[k]||0)+1}});return Object.entries(m).map(([k,v])=>`${esc(k)}: ${v}`).join(", ")};
+$("ins").innerHTML=`<div>Intent mix: ${c(j=>j.intent)}</div><div>Objections: ${c(j=>j.objection)}</div><div>Next channel: ${c(j=>j.next_action?.channel)}</div><div>Escalations flagged: <b>${res.filter(j=>j&&j.escalate).length}/${res.length}</b> · Needs human review: <b>${res.filter(j=>j&&(j.needs_human_review||j.confidence<0.7)).length}</b> · Risky NBA messages: <b>${res.filter((j,i)=>j&&risk(j,T[i]).length).length}</b> · Avg confidence: <b>${(res.reduce((a,j)=>a+(j?+j.confidence||0:0),0)/res.length).toFixed(2)}</b></div>`}
+document.querySelectorAll("select").forEach(s=>s.addEventListener("change",()=>{if(res.length)score()}));
+$("goOwn").onclick=async()=>{const t=$("own").value.trim();if(!t||!sample)return;$("ownOut").innerHTML='<div class="out mut">Analyzing...</div>';
+try{$("ownOut").innerHTML='<div class="out">'+show(await an(t),t)+"</div>"}catch(e){$("ownOut").innerHTML='<div class="out bad">Error: '+esc(e.code||e.message)+"</div>"}};
+</script></main></body></html>
