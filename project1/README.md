@@ -1,6 +1,6 @@
 # Project 1: Call Intelligence + Next Best Action
 
-**Live demo:** https://claude.ai/artifact/VzD1DwEdm8FSR4mYWctvLW  |  **PRD:** PRD A in the [PRDs doc](https://claude.ai/code/artifact/78d47c7d-d174-4c3c-8870-934f3894446c)
+**Live demo:** https://cosmic-dodol-00ea00.netlify.app/ |  **PRD:** PRD A in the [PRDs doc](https://claude.ai/code/artifact/78d47c7d-d174-4c3c-8870-934f3894446c)
 
 ## Problem
 Teams running thousands of sales, renewal and collections calls cannot review them all. Angry or legal-threat calls get missed, and AI-drafted follow-up messages can promise things that were never discussed.
